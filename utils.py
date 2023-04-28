@@ -61,4 +61,4 @@ def sample_edges_from_edges(img, min_length, max_length):
     pass
 
 if __name__ == '__main__':
-    sample_points_from_edges("images/portraits/abe.jpeg")
+    pass
