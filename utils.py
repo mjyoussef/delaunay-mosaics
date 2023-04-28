@@ -23,6 +23,17 @@ def get_edges(path, sigmaX, sigmaY, thresh1, thresh2):
 
     return blurred, output
 
+def randomly_sample_points(img, num_points):
+    '''
+    Randomly samples points in an image
+
+    img: untouched input image
+    num_points: the number of points to sample
+
+    returns a list of tuples representing the randomly sampled points
+    '''
+    pass
+
 def sample_points_from_edges(img, num_points):
     '''
     Randomly samples points along the edges of an image
