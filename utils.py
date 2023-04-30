@@ -172,11 +172,16 @@ def remove_intersecting_edges(edges):
 
 def distance_less_thresh(e1, e2, dist_thresh, theta_thresh):
     '''
-    computes distance between two edges
-
-    Note: this is a custom distance function that considers two edges
+    determines if two edges are considered close
+    ** Note: this is a custom distance function that considers two edges
     as being close if the distance between them is below a threshold AND
-    the angular distance between them is below a threshold
+    the angular distance between them is below a threshold **
+
+    e1, e2: edges
+    dist_thresh: distance threshold
+    theta_thresh: angular distance threshold
+
+    returns true/false
     '''
 
     x1, y1 = e1
@@ -186,35 +191,25 @@ def distance_less_thresh(e1, e2, dist_thresh, theta_thresh):
     if (ep_dist >= dist_thresh):
         return False
     
+    # vectors representing the two edges
     v1, v2 = None, None
     if (ep_dist == dist(x1, x2)):
-        y1[0] -= x1[0]
-        y1[1] -= x1[1]
-        y2[0] -= x2[0]
-        y2[1] -= x2[1]
-        v1, v2 = y1, y2
+        v1 = (y1[0]-x1[0], y1[1]-x1[1])
+        v2 = (y2[0]-x2[0], y2[1]-x2[1])
     elif (ep_dist == dist(x1, y2)):
-        y1[0] -= x1[0]
-        y1[1] -= x1[1]
-        x2[0] -= y2[0]
-        x2[1] -= y2[1]
-        v1, v2 = y1, x2
+        v1 = (y1[0]-x1[0], y1[1]-x1[1])
+        v2 = (x2[0]-y2[0], x2[1]-y2[1])
     elif (ep_dist == dist(y1, x2)):
-        x1[0] -= y1[0]
-        x1[1] -= y1[1]
-        y2[0] -= x2[0]
-        y2[1] -= x2[1]
-        v1, v2 = x1, y2
+        v1 = (x1[0]-y1[0], x1[1]-y1[1])
+        v2 = (y2[0]-x2[0], y2[1]-x2[1])
     else:
-        x1[0] -= y1[0]
-        x1[1] -= y1[1]
-        x2[0] -= y2[0]
-        x2[1] -= y2[1]
-        v1, v2 = x1, x2
+        v1 = (x1[0]-y1[0], x1[1]-y1[1])
+        v2 = (x2[0]-y2[0], x2[1]-y2[1])
     
     # compute cos similarity
     dot_prod = (v1[0] * v2[0]) + (v1[1] * v2[1])
     cos_sim = dot_prod / (dist(v1, (0,0)) * dist(v2, (0,0)))
+    cos_sim = np.clip(cos_sim, -1, 1)
 
     return np.arccos(cos_sim) < theta_thresh
 
@@ -222,6 +217,12 @@ def distance_less_thresh(e1, e2, dist_thresh, theta_thresh):
 def remove_close_edges(edges, dist_thresh, theta_thresh):
     '''
     removes edges that are too close to one another
+
+    edges: a list of edges
+    dist_thresh: distance threshold
+    theta_thresh: angular distance threshold
+
+    returns a list of edges s.t that no two edges are "close" to one another
     '''
     n = len(edges)
     adj_mat = np.zeros((n, n))
@@ -284,7 +285,7 @@ def search(img, i_start, j_start, min_length, edges, radius):
         # add neighboring points (within a certain radius) to the queue
         add_entries_in_radius(img, i, j, new_parent, radius, q)
         
-def sample_edges_from_edges(img, min_length, radius=1):
+def sample_edges_from_edges(img, min_length, dist_thresh, theta_thresh, radius=1):
     '''
     Randomly samples edges that are bounded by certain length threshold
 
@@ -302,11 +303,15 @@ def sample_edges_from_edges(img, min_length, radius=1):
             if (img_copy[i][j] != 0):
                 search(img_copy, i, j, min_length, edges, radius)
     
-    return remove_intersecting_edges(edges)
+    non_intersecting_edges = remove_intersecting_edges(edges)
+    return remove_close_edges(non_intersecting_edges, dist_thresh, theta_thresh)
 
 if __name__ == '__main__':
-    blurred, output = get_edges("images/portraits/abe.jpeg", 7, 7, 10, 150)
-    edges = sample_edges_from_edges(output, 40, radius=1)
+    dist_thresh = 30
+    theta_thresh = np.pi/6
+
+    blurred, output = get_edges("images/portraits/abe.jpeg", 7, 7, 20, 80)
+    edges = sample_edges_from_edges(output, 40, dist_thresh, theta_thresh, radius=1)
 
     width, height = output.shape
     image = np.ones((width, height)) * 255
