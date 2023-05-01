@@ -20,9 +20,6 @@ def get_edges(path, sigmaX, sigmaY, thresh1, thresh2):
     blurred = cv2.GaussianBlur(gray, (sigmaX, sigmaY), 0)
     output = cv2.Canny(blurred, thresh1, thresh2)
 
-    # cv2.imshow("output", output)
-    # cv2.waitKey(0)
-
     return blurred, output
 
 def randomly_sample_points(img, num_points):
