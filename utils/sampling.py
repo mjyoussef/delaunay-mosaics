@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from queue import Queue
 import random
+from geo import dist, orientation_of, segments_intersect
 
 
 def get_edges(path, sigmaX, sigmaY, thresh1, thresh2):
@@ -45,60 +46,6 @@ def sample_points_from_edges(img, num_points):
     
     pass
 
-
-def dist(p1, p2):
-    return np.sqrt( ((p1[0] - p2[0])**2) + ((p1[1] - p2[1])**2) )
-
-def orientation_of(p1, p2, p3):
-    '''
-    computes the orientation of three points
-
-    p1, p2, p3: coordinates of points
-
-    returns -1 for cw, 0 for colinear, and 1 for ccw
-    '''
-    det_matrix = np.array([[p1[0], p1[1], 1], [p2[0], p2[1], 1], [p3[0], p3[1], 1]])
-    det_sign = np.linalg.det(det_matrix)
-    if (det_sign < 0):
-        det_sign = -1
-    
-    if (det_sign > 0):
-        det_sign = 1
-
-    return det_sign
-
-def segments_intersect(e1, e2):
-    '''
-    determines if two edges intersect each other
-    ** Note: edges with a single matching endpoint do not intersect for our purposes **
-
-    e1, e2: edges
-
-    returns true/false
-    '''
-    if (e1[0] == e2[0] or e1[0] == e2[1] or e1[1] == e2[0] or e1[1] == e2[1]):
-        return False
-    
-    o_1 = orientation_of(e1[0], e1[1], e2[0])
-    o_2 = orientation_of(e1[0], e1[1], e2[1])
-
-    o_3 = orientation_of(e2[0], e2[1], e1[0])
-    o_4 = orientation_of(e2[0], e2[1], e1[1])
-
-    if (o_1 == 0 and o_2 == 0 and o_3 == 0 and o_4 == 0): # colinear
-
-        x_projs = [(e1[0][0], 0), (e1[1][0], 0), (e2[0][0], 1), (e2[1][0], 1)]
-        list.sort(x_projs, key=lambda x: x[0])
-
-        y_projs = [(e1[0][1], 0), (e1[1][1], 0), (e2[0][1], 1), (e2[1][1], 1)]
-        list.sort(y_projs, key=lambda y: y[0])
-
-        # check if there is overlap in the x, y projections of the segments
-        return x_projs[0][1] != x_projs[1][1] or y_projs[0][1] != y_projs[0][1]
-    
-    # if points are not colinear, they intersect when
-    # the orientations 1,2 and 3,4 are different
-    return o_1 != o_2 and o_3 != o_4
 
 def filter_edges(edges, adj_mat):
     '''
@@ -307,14 +254,16 @@ if __name__ == '__main__':
     dist_thresh = 30
     theta_thresh = np.pi/6
 
-    blurred, output = get_edges("images/portraits/abe.jpeg", 7, 7, 20, 80)
-    edges = sample_edges_from_edges(output, 40, dist_thresh, theta_thresh, radius=1)
+    blurred, output = get_edges("images/portraits/abe.jpeg", 5, 5, 25, 80)
+    edges = sample_edges_from_edges(output, 30, dist_thresh, theta_thresh, radius=1)
 
     width, height = output.shape
-    image = np.ones((width, height)) * 255
+    image = np.ones((width, height, 3)) * 255
 
     for p1, p2 in edges:
         cv2.line(image, (p1[1], p1[0]), (p2[1], p2[0]), (0, 255, 0), thickness=2)
+        cv2.circle(image, (p1[1], p1[0]), 2, (255, 0, 0), thickness=-1)
+        cv2.circle(image, (p2[1], p2[0]), 2, (255, 0, 0), thickness=-1)
     
     cv2.imshow("output", image)
     cv2.waitKey(0)

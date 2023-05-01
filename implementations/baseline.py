@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 '''
 Baseline Delaunay Triangulation...
@@ -13,3 +14,4 @@ Step 3: Update the color of every pixel in a triangle to the average color in th
 Step 4: Save and display the mosaic from step 3
 
 '''
+
