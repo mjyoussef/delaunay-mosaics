@@ -16,11 +16,12 @@ def fill_triangles(image, triangles):
     '''
 
     for triangle in triangles:
+        tri_coords = np.array([[triangle.A_coords, triangle.B_coords, triangle.C_coords]])
         mask = np.zeros_like(image[:,:,0])
 
         # the region within the triangle is set to 255
-        cv2.drawContours(mask, np.array([triangle]), 0, 255, -1)
+        cv2.drawContours(mask, tri_coords, 0, 255, -1)
 
         # compute average color and fill in triangle
         B_mean, G_mean, R_mean, _ = cv2.mean(image, mask=mask)
-        cv2.fillPoly(image, np.array([triangle]), (B_mean, G_mean, R_mean))
+        cv2.fillPoly(image, tri_coords, (B_mean, G_mean, R_mean))

@@ -144,7 +144,11 @@ class Triangle():
         return pt_dist <= radius + ep
     
     def __eq__(self, other):
-        pass
+        if (not isinstance(other, Triangle)):
+            return False
+        
+        coords = [self.A_coords, self.B_coords, self.C_coords]
+        return coords.count(other.A_coords) > 0 and coords.count(other.B_coords) > 0 and coords.count(other.C_coords) > 0
     
     def opposite_segment(self, pt):
         if (not self.a.contains(pt)):
@@ -154,7 +158,7 @@ class Triangle():
         elif (not self.c.contains(pt)):
             return self.c
         else:
-            raise Exception("Input point is not a vertex of this triangle")
+            raise Exception("Invalid triangle: every segment has a common point")
         
     def non_opposite_segments(self, opp_segment):
         segments = []

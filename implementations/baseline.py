@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
 from utils.sampling import randomly_sample_points, sparsify
-from utils.geo import Segment, Triangle
+from utils.geo import Triangle
+from utils.coloring import fill_triangles
 
 '''
 Baseline Delaunay Triangulation...
@@ -47,6 +48,17 @@ def add_opposite_triangle(pt, t, stack, segments_to_triangle_dict):
         
         stack.append((opposite_triangle, opp_segment))
 
+def triangle_from_segments(segments):
+    pts = []
+    for seg in segments:
+        if (pts.count(seg.p1) == 0):
+            pts.append(seg.p1)
+        if (pts.count(seg.p2) == 0):
+            pts.append(seg.p2)
+    
+    p1, p2, p3 = pts
+    return Triangle(p1, p2, p3)
+
 def insert_point(pt, triangles, segments_to_triangle_dict):
     init_t = None
     stack = []
@@ -76,26 +88,50 @@ def insert_point(pt, triangles, segments_to_triangle_dict):
             left, right = [], []
             if (opp_tri_segments0[0].contains(opp_segment.p1)):
                 left.append(opp_tri_segments0[0])
+                right.append(opp_tri_segments0[1])
             else:
                 left.append(opp_tri_segments0[1])
                 right.append(opp_tri_segments0[0])
             
             if (opp_tri_segments1[0].contains(opp_segment.p1)):
                 left.append(opp_tri_segments1[0])
+                right.append(opp_tri_segments1[1])
             else:
                 left.append(opp_tri_segments1[1])
                 right.append(opp_tri_segments1[0])
 
             # remove both triangles in `tris_w_opp_segment` from `triangles`
+            triangles.remove(tris_w_opp_segment[0])
+            triangles.remove(tris_w_opp_segment[1])
+
             # dictionary update: remove `opp_segment` from dictionary and update values associated w/ segments from 
             # `opp_tri_segments0` and `opp_tri_segments1`
-            
+            segments_to_triangle_dict.pop(opp_segment)
+            segments = opp_tri_segments0 + opp_tri_segments1
+            for seg in segments:
+                segments_to_triangle_dict.get(seg).remove(tris_w_opp_segment[0])
+                segments_to_triangle_dict.get(seg).remove(tris_w_opp_segment[1])
+
 
             # add two new triangles to triangles
+            tri_left = triangle_from_segments(left)
+            tri_right = triangle_from_segments(right)
+
+            triangles.append(tri_left)
+            triangles.append(tri_right)
+
             # dictionary update: update values associated with segments from `opp_tri_segments0` and `opp_tri_segments1`
             # and add in the new diagonal segment
+            for seg in segments:
+                segments_to_triangle_dict.get(seg).append(tri_left)
+                segments_to_triangle_dict.get(seg).append(tri_right)
+            
+            new_diagonal = tri_left.opposite_segment(opp_segment.p1)
+            segments_to_triangle_dict.put(new_diagonal, [tri_left, tri_right])
 
             # update the stack using the two new triangles
+            add_opposite_triangle(pt, tri_left, stack, segments_to_triangle_dict)
+            add_opposite_triangle(pt, tri_right, stack, segments_to_triangle_dict)
 
 
 def triangulate(points):
@@ -113,7 +149,6 @@ def triangulate(points):
     return triangles
         
 
-
 ################### Arg parse function ######################
 
 def display_mosaic_baseline(path):
@@ -128,4 +163,8 @@ def display_mosaic_baseline(path):
     points = randomly_sample_points(image, 1000)
     points = sparsify(points, 30)
 
-    pass
+    triangles = triangulate(points)
+    fill_triangles(image, triangles)
+
+    cv2.imshow("baseline", image)
+    cv2.waitKey(0)
