@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from queue import Queue
 import random
-from geo import dist, orientation_of, segments_intersect
+from geo import dist, segments_intersect
 
 
 def get_edges(path, sigmaX, sigmaY, thresh1, thresh2):
@@ -21,7 +21,7 @@ def get_edges(path, sigmaX, sigmaY, thresh1, thresh2):
     blurred = cv2.GaussianBlur(gray, (sigmaX, sigmaY), 0)
     output = cv2.Canny(blurred, thresh1, thresh2)
 
-    return blurred, output
+    return image, blurred, output
 
 def randomly_sample_points(img, num_points):
     '''
@@ -47,7 +47,7 @@ def sample_points_from_edges(img, num_points):
     pass
 
 
-def filter_edges(edges, adj_mat):
+def MIS(vertices, adj_mat):
     '''
     Helper function for finding a maximal independent subset in the adj_mat
     ** Note: this function is attemtping to find something as close as possible to the 
@@ -59,40 +59,60 @@ def filter_edges(edges, adj_mat):
 
     returns a subset of edges from `edges` s.t that no edge intersects another edge
     '''
-    n = len(edges)
+    n = len(vertices)
     
-    # counts the number of edges each edge neighbors in adj_mat
+    # counts the number of vertices each vertex neighbors in adj_mat
     intersects = adj_mat.sum(axis=1)
 
-    # keep track of how many edges need to be removed
+    # keep track of how many vertices need to be removed
     intersects_copy = intersects.copy()
     intersects_copy[intersects_copy > 0] = 1
     remaining = intersects_copy.sum()
 
     # indices of edges that need to be removed
-    edges_to_remove = set()
+    vertices_to_remove = set()
 
     while (remaining > 0):
         # find edge with greatest number of neighbors
-        edge_idx = np.argmax(intersects)
-        edges_to_remove.add(edge_idx)
+        vertex_idx = np.argmax(intersects)
+        vertices_to_remove.add(vertex_idx)
 
         # iterate over neighbors, updating `remaining` along the way
         for i in range(n):
-            if (adj_mat[edge_idx][i] == 1):
+            if (adj_mat[vertex_idx][i] == 1):
                 intersects[i] -= 1
                 if (intersects[i] == 0):
                     remaining -= 1
         
-        intersects[edge_idx] = 0
+        intersects[vertex_idx] = 0
         remaining -= 1
     
-    new_edges = []
+    new_vertices = []
     for i in range(n):
-        if (i not in edges_to_remove):
-            new_edges.append(edges[i])
+        if (i not in vertices_to_remove):
+            new_vertices.append(vertices[i])
     
-    return new_edges
+    return new_vertices
+
+def sparsify(points, dist_threshold):
+    '''
+    Filters points such that no two points are within a distance threshold
+
+    points: list of x,y coordinates
+    dist_threshold: Euclidean distance threshold
+
+    returns a filtered list of points
+    '''
+
+    n = len(points)
+    adj_mat = np.zeros((n, n))
+    for i in range(n):
+        for j in range(i):
+            if (dist(points[i], points[j]) < dist_threshold):
+                adj_mat[i][j] = 1
+                adj_mat[j][i] = 1
+    
+    return MIS(points, adj_mat)
 
 def remove_intersecting_edges(edges):
     '''
@@ -112,7 +132,7 @@ def remove_intersecting_edges(edges):
                 adj_mat[j][i] = 1
     
     # remove edge that intersects the greatest number of edges
-    return filter_edges(edges, adj_mat)
+    return MIS(edges, adj_mat)
 
 def distance_less_thresh(e1, e2, dist_thresh, theta_thresh):
     '''
@@ -177,7 +197,7 @@ def remove_close_edges(edges, dist_thresh, theta_thresh):
                 adj_mat[i][j] = 1
                 adj_mat[j][i] = 1
 
-    return filter_edges(edges, adj_mat)
+    return MIS(edges, adj_mat)
 
 
 def add_entries_in_radius(img, i, j, new_parent, radius, q):

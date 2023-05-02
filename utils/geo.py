@@ -60,3 +60,14 @@ def segments_intersect(e1, e2):
     # if points are not colinear, they intersect when
     # the orientations 1,2 and 3,4 are different
     return o_1 != o_2 and o_3 != o_4
+
+def area_of(p1, p2, p3):
+    if (orientation_of(p1, p2, p3) == 0): # colinear
+        return 0
+    
+    a = dist(p1, p2)
+    b = dist(p2, p3)
+    c = dist(p1, p3)
+
+    s = 0.5 * (a + b + c)
+    return np.sqrt(s * (s - a) * (s - b) + (s - c))
