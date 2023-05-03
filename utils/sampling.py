@@ -8,48 +8,8 @@ import random
 from utils.geo import dist, segments_intersect
 
 
-def get_edges(path, sigmaX, sigmaY, thresh1, thresh2):
-    '''
-    Extracts edges from images
 
-    sigmaX: x variance for Gaussian filter
-    sigmaY: y variance for Gaussian filter
-    thresh1: lower threshold for hysteris
-    thresh2: upper threshold for hysteris
-
-    returns blurred output and output w/ outlined edges
-    '''
-    image = cv2.imread(path)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (sigmaX, sigmaY), 0)
-    output = cv2.Canny(blurred, thresh1, thresh2)
-
-    return image, blurred, output
-
-def randomly_sample_points(img, num_points):
-    '''
-    Randomly samples points in an image
-
-    img: untouched input image
-    num_points: the number of points to sample
-
-    returns a list of tuples representing the randomly sampled points
-    '''
-    pass
-
-def sample_points_from_edges(img, num_points):
-    '''
-    Randomly samples points along the edges of an image
-
-    img: image that has already been run through an edge detector
-    num_points: number of points to sample
-
-    returns points in the image as a list of tuples
-    '''
-    
-    pass
-
-
+########################## Helpers ###############################
 def MIS(vertices, adj_mat):
     '''
     Helper function for finding a maximal independent subset in the adj_mat
@@ -117,6 +77,66 @@ def sparsify(points, dist_threshold):
     
     return MIS(points, adj_mat)
 
+######################### Utilities ################################## 
+
+def get_edges(path, sigmaX, sigmaY, thresh1, thresh2):
+    '''
+    Extracts edges from images
+
+    sigmaX: x variance for Gaussian filter
+    sigmaY: y variance for Gaussian filter
+    thresh1: lower threshold for hysteris
+    thresh2: upper threshold for hysteris
+
+    returns blurred output and output w/ outlined edges
+    '''
+    image = cv2.imread(path)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (sigmaX, sigmaY), 0)
+    output = cv2.Canny(blurred, thresh1, thresh2)
+
+    return image, blurred, output
+
+def randomly_sample_points(img, cnt, qualityScore, minDistance, mode="corner"):
+    '''
+    Randomly samples points in an image
+
+    img: untouched input image
+    cnt: number of points to sample
+    qualityScore: qualityScore for corner detection
+    minDistance: minimum distance between points
+    num_points: the number of points to sample
+
+    returns a list of tuples representing the randomly sampled points
+    '''
+    if mode=="corner":
+        # 对特征点进行角点检测
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        corners = cv2.goodFeaturesToTrack(gray, cnt, qualityScore, minDistance)
+        corners = np.squeeze(corners)
+        return corners
+    else:
+        x = np.random.randint(1, img.shape[0]-1, (cnt, 1))
+        y = np.random.randint(1, img.shape[1]-1, (cnt, 1))
+        return sparsify(np.concatenate([x,y], axis=1), minDistance)
+
+def sample_points_from_edges(img, cnt, minDistance):
+    '''
+    Randomly samples points along the edges of an image
+
+    img: image that has already been run through an edge detector
+    cnt: number of points to sample
+    minDistance: minimum distance threshold
+
+    returns points in the image as a list of tuples
+    '''
+
+    coords = np.column_stack(np.where(img > 0))
+
+    samples = coords[np.random.choice(coords.shape[0], cnt, replace=False), :]
+
+    return sparsify(samples, minDistance)
+
 def remove_intersecting_edges(edges):
     '''
     removes edges that intersect at anything other than end-points
@@ -179,7 +199,6 @@ def distance_less_thresh(e1, e2, dist_thresh, theta_thresh):
     cos_sim = np.clip(cos_sim, -1, 1)
 
     return np.arccos(cos_sim) < theta_thresh
-
 
 def remove_close_edges(edges, dist_thresh, theta_thresh):
     '''
@@ -273,20 +292,28 @@ def sample_edges_from_edges(img, min_length, dist_thresh, theta_thresh, radius=1
     non_intersecting_edges = remove_intersecting_edges(edges)
     return remove_close_edges(non_intersecting_edges, dist_thresh, theta_thresh)
 
+
+############################ TESTS ###############################
+
 if __name__ == '__main__':
-    dist_thresh = 30
-    theta_thresh = np.pi/6
-
     original_img, blurred, output = get_edges("../../delaunay-mosaics/images/portraits/abe.jpeg", 5, 5, 25, 80)
-    edges = sample_edges_from_edges(output, 30, dist_thresh, theta_thresh, radius=1)
+    pts = randomly_sample_points(original_img, 300, 0.01, 18)
+    pts_non_corner = randomly_sample_points(original_img, 300, 0.01, 18, mode="normal")
+    pts_from_edges = sample_points_from_edges(output, 300, 18)
 
-    width, height = output.shape
-    image = np.ones((width, height, 3)) * 255
+    # dist_thresh = 30
+    # theta_thresh = np.pi/6
 
-    for p1, p2 in edges:
-        cv2.line(image, (p1[1], p1[0]), (p2[1], p2[0]), (0, 255, 0), thickness=2)
-        cv2.circle(image, (p1[1], p1[0]), 2, (255, 0, 0), thickness=-1)
-        cv2.circle(image, (p2[1], p2[0]), 2, (255, 0, 0), thickness=-1)
+    # original_img, blurred, output = get_edges("../../delaunay-mosaics/images/portraits/abe.jpeg", 5, 5, 25, 80)
+    # edges = sample_edges_from_edges(output, 30, dist_thresh, theta_thresh, radius=1)
+
+    # width, height = output.shape
+    # image = np.ones((width, height, 3)) * 255
+
+    # for p1, p2 in edges:
+    #     cv2.line(image, (p1[1], p1[0]), (p2[1], p2[0]), (0, 255, 0), thickness=2)
+    #     cv2.circle(image, (p1[1], p1[0]), 2, (255, 0, 0), thickness=-1)
+    #     cv2.circle(image, (p2[1], p2[0]), 2, (255, 0, 0), thickness=-1)
     
-    cv2.imshow("output", image)
-    cv2.waitKey(0)
+    # cv2.imshow("output", image)
+    # cv2.waitKey(0)

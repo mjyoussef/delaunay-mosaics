@@ -5,9 +5,6 @@ from implementations.baseline import super_triangle, triangulate, remove_super_t
 from utils.geo import segments_intersect
 import unittest
 
-import numpy as np
-
-
 class SuperTriangleTests(unittest.TestCase):
     def test_one_pt(self):
         pts = [(5,8)]
@@ -28,9 +25,8 @@ class SuperTriangleTests(unittest.TestCase):
             self.assertTrue(st.encloses(pt))
 
 class TriangulateTests(unittest.TestCase):
-    def test_triangulate(self):
-        pts = [(-1,5), (-1,90), (100,5), (100,90)]
 
+    def triangulate_on(self, pts):
         # check that no triangles intersect
         st, seg_dict, triangles = triangulate(pts)
         for t1 in triangles:
@@ -56,15 +52,18 @@ class TriangulateTests(unittest.TestCase):
             if (not pt in pts_w_st):
                 pts_w_st.append(pt)
         
-        new_triangles = remove_super_triangle(st, triangles)
-        for t in new_triangles:
-            print(t.A_coords, t.B_coords, t.C_coords)
-        
         for pt in pts_w_st:
             for t in triangles:
-                if (t.in_circumcircle(pt, disp=False)):
-                    print(pt)
-                    print(t.A_coords, t.B_coords, t.C_coords)
+                if (t.in_circumcircle(pt)):
+                    t.in_circumcircle(pt, disp=True)
+                #self.assertFalse(t.in_circumcircle(pt))
+        
+        self.assertTrue(len(remove_super_triangle(st, triangles)) > 0)
+
+    def test_triangulate(self):
+        pts = [(-1,5), (-1,90), (100,5), (100,90), (84, 3), (91, 2), (91, -30), (91, 90), (91, 200)]
+
+        self.triangulate_on(pts)
 
 
 if __name__ == '__main__':

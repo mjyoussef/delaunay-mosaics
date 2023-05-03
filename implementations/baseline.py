@@ -4,7 +4,7 @@ sys.path.append("../../delaunay-mosaics")
 import cv2
 import numpy as np
 from utils.geo import Triangle
-from utils.sampling import randomly_sample_points, sparsify
+from utils.sampling import randomly_sample_points, sample_points_from_edges, get_edges, sparsify
 from utils.coloring import fill_triangles
 
 '''
@@ -268,11 +268,32 @@ def display_mosaic_baseline(path):
     '''
     image = cv2.imread(path)
     points = randomly_sample_points(image, 1000)
-    points = sparsify(points, 30)
 
-    st, seg_dict, triangles = triangulate(points)
+    st, _, triangles = triangulate(points)
     triangles = remove_super_triangle(st, triangles)
     fill_triangles(image, triangles)
 
     cv2.imshow("baseline", image)
+    cv2.waitKey(0)
+
+
+############################# TESTS ##################################
+
+if __name__ == "__main__":
+    original_img, blurred, output = get_edges("../../delaunay-mosaics/images/portraits/abe.jpeg", 5, 5, 25, 80)
+
+    pts = sample_points_from_edges(output, 1200, 10)
+    pts = np.concatenate((pts, randomly_sample_points(original_img, 300, 0.01, 30, mode="not corner")), axis=0)
+
+    pts_tuples = []
+    for pt in pts:
+        tup = (int(pt[1]), int(pt[0]))
+        if (tup not in pts_tuples):
+            pts_tuples.append(tup)
+    
+    st, _, triangles = triangulate(pts_tuples)
+    triangles = remove_super_triangle(st, triangles)
+    
+    fill_triangles(original_img, triangles)
+    cv2.imshow("new image", original_img)
     cv2.waitKey(0)
