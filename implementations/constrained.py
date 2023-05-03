@@ -1,4 +1,5 @@
 import cv2
+from baseline import triangulate, remove_super_triangle
 
 '''
 Edge-constrained Delaunay triangulation...
@@ -17,3 +18,4 @@ Step 5: Update the color of every pixel in a triangle to the average color in th
 Step 6: Save and display the mosaic from step 5
 
 '''
+

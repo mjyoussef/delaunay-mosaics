@@ -56,7 +56,6 @@ class TriangulateTests(unittest.TestCase):
             for t in triangles:
                 if (t.in_circumcircle(pt)):
                     t.in_circumcircle(pt, disp=True)
-                #self.assertFalse(t.in_circumcircle(pt))
         
         self.assertTrue(len(remove_super_triangle(st, triangles)) > 0)
 
@@ -64,7 +63,6 @@ class TriangulateTests(unittest.TestCase):
         pts = [(-1,5), (-1,90), (100,5), (100,90), (84, 3), (91, 2), (91, -30), (91, 90), (91, 200)]
 
         self.triangulate_on(pts)
-
 
 if __name__ == '__main__':
     unittest.main()
