@@ -10,7 +10,7 @@ def dist(p1, p2):
     '''
     return np.sqrt( ((p1[0] - p2[0])**2) + ((p1[1] - p2[1])**2) )
 
-def orientation_of(p1, p2, p3):
+def orientation_of(p1, p2, p3, eps=0.0001):
     '''
     computes the orientation of three points
 
@@ -20,13 +20,13 @@ def orientation_of(p1, p2, p3):
     '''
     det_matrix = np.array([[p1[0], p1[1], 1], [p2[0], p2[1], 1], [p3[0], p3[1], 1]])
     det_sign = np.linalg.det(det_matrix)
-    if (det_sign < 0):
-        det_sign = -1
-    
-    if (det_sign > 0):
-        det_sign = 1
 
-    return det_sign
+    if (det_sign <= eps and det_sign >= -eps):
+        return 0
+    elif (det_sign < 0):
+        return -1
+    else:
+        return 1
 
 def segments_intersect(e1, e2):
     '''
@@ -70,7 +70,7 @@ def area_of(p1, p2, p3):
     c = dist(p1, p3)
 
     s = 0.5 * (a + b + c)
-    return np.sqrt(s * (s - a) * (s - b) + (s - c))
+    return np.sqrt(s * (s - a) * (s - b) * (s - c))
 
 
 ############### Triangulation classes #######################
@@ -83,7 +83,8 @@ class Segment():
         self.p2 = pts[1]
 
     def __hash__(self):
-        return str(self.p1) + " " + str(self.p2)
+        str_rep = str(self.p1) + " " + str(self.p2)
+        return hash(str_rep)
     
     def __eq__(self, other):
         return isinstance(other, Segment) and self.p1 == other.p1 and self.p2 == other.p2
@@ -93,13 +94,16 @@ class Segment():
     
     def contains(self, pt):
         return self.p1 == pt or self.p2 == pt
-
+    
+    def length(self):
+        return dist(self.p1, self.p2)
 
 class Triangle():
     def __init__(self, p1, p2, p3):
 
         self.line = False
-        if (orientation_of(p1, p2, p3) == 0): # colinear
+        orientation = orientation_of(p1, p2, p3)
+        if (orientation == 0): # colinear
             self.line = True
         
         self.a = Segment(p1, p2)
@@ -113,9 +117,9 @@ class Triangle():
         self.A, self.B, self.C, self.circumCenter = None, None, None, None
 
         if (not self.line):
-            self.A = np.arccos(((self.b ** 2) + (self.c ** 2) - (self.a ** 2)) / (2 * self.b * self.c))
-            self.B = np.arccos(((self.a ** 2) + (self.c ** 2) - (self.b ** 2)) / (2 * self.a * self.c))
-            self.C = np.arccos(((self.a ** 2) + (self.b ** 2) - (self.c ** 2)) / (2 * self.a * self.b))
+            self.A = np.arccos(((self.b.length() ** 2) + (self.c.length() ** 2) - (self.a.length() ** 2)) / (2 * self.b.length() * self.c.length()))
+            self.B = np.arccos(((self.a.length() ** 2) + (self.c.length() ** 2) - (self.b.length() ** 2)) / (2 * self.a.length() * self.c.length()))
+            self.C = np.arccos(((self.a.length() ** 2) + (self.b.length() ** 2) - (self.c.length() ** 2)) / (2 * self.a.length() * self.b.length()))
 
             x = (self.A_coords[0] * np.sin(2*self.A)) + (self.B_coords[0] * np.sin(2*self.B)) + (self.C_coords[0] * np.sin(2*self.C))
             x /= (np.sin(2*self.A) + np.sin(2*self.B) + np.sin(2*self.C))
@@ -124,8 +128,18 @@ class Triangle():
             y /= (np.sin(2*self.A) + np.sin(2*self.B) + np.sin(2*self.C))
 
             self.circumCenter = (x, y)
+        else:
+            max_segment = self.a
+            if (self.b.length() > self.a.length()):
+                max_segment = self.b
+
+            if (self.c.length() > max_segment.length()):
+                max_segment = self.c
+
+            self.circumCenter = max_segment.midpoint()
+            self.line_segment = max_segment
     
-    def encloses(self, pt, ep=0.0005):
+    def encloses(self, pt, eps=0.00005):
         if (self.line):
             raise Exception("Cannot check if a point is enclosed by a line")
         
@@ -135,13 +149,18 @@ class Triangle():
         a3 = area_of(pt, self.B_coords, self.C_coords)
         a_sum = a1 + a2 + a3
 
-        return (original_area <= a_sum + ep) and (original_area >= a_sum - ep)
+        return (original_area <= a_sum + eps) and (original_area >= a_sum - eps)
     
-    def in_circumcircle(self, pt, ep=0.001):
+    def in_circumcircle(self, pt, eps=0.00001):
         pt_dist = dist(pt, self.circumCenter)
-        radius = dist(self.A_coords, self.circumCenter)
+        radius = None
+        if (self.line):
+            radius = dist(self.line_segment.p1, self.circumCenter)
+        else:
+            radius = dist(self.A_coords, self.circumCenter)
 
-        return pt_dist <= radius + ep
+        # more likely to consider a point as not being in the circumcircle
+        return pt_dist < radius - eps
     
     def __eq__(self, other):
         if (not isinstance(other, Triangle)):
@@ -171,7 +190,10 @@ class Triangle():
         if (self.c != opp_segment):
             segments.append(self.c)
         
-        if (len(segments) >= 3):
+        if (len(segments) > 2):
             raise Exception("\"Opposite segment\" is not part of this triangle")
         
         return segments
+    
+    def contains(self, pt):
+        return self.A_coords == pt or self.B_coords == pt or self.C_coords == pt
