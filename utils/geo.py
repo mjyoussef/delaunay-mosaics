@@ -141,7 +141,8 @@ class Triangle():
     
     def encloses(self, pt, eps=0.00005):
         if (self.line):
-            raise Exception("Cannot check if a point is enclosed by a line")
+            return orientation_of(self.line_segment.p1, self.line_segment.p2, pt) == 0 \
+            and pt[0] >= self.line_segment.p1[0] and pt[0] <= self.line_segment.p2[0]
         
         original_area = area_of(self.A_coords, self.B_coords, self.C_coords)
         a1 = area_of(pt, self.A_coords, self.B_coords)
@@ -151,7 +152,7 @@ class Triangle():
 
         return (original_area <= a_sum + eps) and (original_area >= a_sum - eps)
     
-    def in_circumcircle(self, pt, eps=0.00001):
+    def in_circumcircle(self, pt, eps=0.00000001, disp=False):
         pt_dist = dist(pt, self.circumCenter)
         radius = None
         if (self.line):
@@ -160,6 +161,8 @@ class Triangle():
             radius = dist(self.A_coords, self.circumCenter)
 
         # more likely to consider a point as not being in the circumcircle
+        if (disp):
+            print(pt_dist, radius)
         return pt_dist < radius - eps
     
     def __eq__(self, other):
@@ -197,3 +200,6 @@ class Triangle():
     
     def contains(self, pt):
         return self.A_coords == pt or self.B_coords == pt or self.C_coords == pt
+    
+    def contains_segment(self, segment):
+        return self.a == segment or self.b == segment or self.c == segment

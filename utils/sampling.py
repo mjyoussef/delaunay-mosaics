@@ -1,8 +1,11 @@
+import sys
+sys.path.append("../../delaunay-mosaics")
+
 import cv2
 import numpy as np
 from queue import Queue
 import random
-from geo import dist, segments_intersect
+from utils.geo import dist, segments_intersect
 
 
 def get_edges(path, sigmaX, sigmaY, thresh1, thresh2):
@@ -274,7 +277,7 @@ if __name__ == '__main__':
     dist_thresh = 30
     theta_thresh = np.pi/6
 
-    blurred, output = get_edges("images/portraits/abe.jpeg", 5, 5, 25, 80)
+    original_img, blurred, output = get_edges("../../delaunay-mosaics/images/portraits/abe.jpeg", 5, 5, 25, 80)
     edges = sample_edges_from_edges(output, 30, dist_thresh, theta_thresh, radius=1)
 
     width, height = output.shape

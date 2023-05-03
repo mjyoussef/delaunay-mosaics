@@ -1,7 +1,10 @@
+import sys
+sys.path.append("../../delaunay-mosaics")
+
 import cv2
 import numpy as np
-from utils.sampling import randomly_sample_points, sparsify
 from utils.geo import Triangle
+from utils.sampling import randomly_sample_points, sparsify
 from utils.coloring import fill_triangles
 
 '''
@@ -58,12 +61,13 @@ def add_opposite_triangle(pt, t, stack, segments_to_triangle_dict):
     '''
     opp_segment = t.opposite_segment(pt)
     tris_w_opp_segment = segments_to_triangle_dict.get(opp_segment)
-
-    if (len(tris_w_opp_segment) > 1):
-        opposite_triangle = tris_w_opp_segment[0]
-        if (opposite_triangle == t):
-            opposite_triangle = tris_w_opp_segment[1]
-        
+    opposite_triangle = None
+    for t_w_opp in tris_w_opp_segment:
+        if (t_w_opp != t):
+            opposite_triangle = t_w_opp
+            break
+    
+    if (opposite_triangle != None):
         stack.append((opposite_triangle, opp_segment))
 
 def triangle_from_segments(segments):
@@ -98,7 +102,7 @@ def update_dict(seg, triangle, segments_to_triangle_dict):
     returns void
     '''
     if (segments_to_triangle_dict.get(seg) == None):
-        segments_to_triangle_dict.update({seg, [triangle]})
+        segments_to_triangle_dict.update({seg: [triangle]})
     else:
         segments_to_triangle_dict.get(seg).append(triangle)
 
@@ -126,16 +130,16 @@ def insert_point(pt, triangles, segments_to_triangle_dict):
     new_tri2 = Triangle(pt, init_t.A_coords, init_t.C_coords)
     new_tri3 = Triangle(pt, init_t.B_coords, init_t.C_coords)
 
-    # add opposite triangle to dictionary and to triangles
-    add_opposite_triangle(pt, new_tri1, stack, segments_to_triangle_dict)
-    add_opposite_triangle(pt, new_tri2, stack, segments_to_triangle_dict)
-    add_opposite_triangle(pt, new_tri3, stack, segments_to_triangle_dict)
-
     # remove old triangle from dictionary and from `triangles`
     segments_to_triangle_dict.get(init_t.a).remove(init_t)
     segments_to_triangle_dict.get(init_t.b).remove(init_t)
     segments_to_triangle_dict.get(init_t.c).remove(init_t)
     triangles.remove(init_t)
+
+    # add opposite triangle to dictionary and to triangles
+    add_opposite_triangle(pt, new_tri1, stack, segments_to_triangle_dict)
+    add_opposite_triangle(pt, new_tri2, stack, segments_to_triangle_dict)
+    add_opposite_triangle(pt, new_tri3, stack, segments_to_triangle_dict)
 
     # add new line segments + references to new triangle in dictionary and update `triangles`
     new_triangles = [new_tri1, new_tri2, new_tri3]
@@ -144,7 +148,7 @@ def insert_point(pt, triangles, segments_to_triangle_dict):
         update_dict(t.a, t, segments_to_triangle_dict)
         update_dict(t.b, t, segments_to_triangle_dict)
         update_dict(t.c, t, segments_to_triangle_dict)
-
+    
     while (len(stack) > 0): # see Lawson's algorithm
 
         # triangle opposite to `pt`
@@ -152,9 +156,17 @@ def insert_point(pt, triangles, segments_to_triangle_dict):
 
         if (t.in_circumcircle(pt)): # swap diagonals of the convex quadrilateral
 
-            tris_w_opp_segment = segments_to_triangle_dict.get(opp_segment)
-            opp_tri_segments0 = tris_w_opp_segment[0].non_opposite_segments(pt, opp_segment)
-            opp_tri_segments1 = tris_w_opp_segment[1].non_opposite_segments(pt, opp_segment)
+            tris_w_opp_segment = segments_to_triangle_dict.get(opp_segment).copy()
+            for t1 in tris_w_opp_segment:
+                if (not t1.contains_segment(opp_segment)):
+                    raise Exception("Found a triangle not containing opposite segment")
+                
+            if (len(tris_w_opp_segment) != 2):
+                print("length of tris_w_opp_segment", len(tris_w_opp_segment))
+                raise Exception("Invalid length")
+            
+            opp_tri_segments0 = tris_w_opp_segment[0].non_opposite_segments(opp_segment)
+            opp_tri_segments1 = tris_w_opp_segment[1].non_opposite_segments(opp_segment)
 
             # find edges sharing similar endpoints from opp_segment
             left, right = [], []
@@ -171,17 +183,18 @@ def insert_point(pt, triangles, segments_to_triangle_dict):
             else:
                 left.append(opp_tri_segments1[1])
                 right.append(opp_tri_segments1[0])
-
+            
             # remove both triangles in `tris_w_opp_segment` from `triangles`
             triangles.remove(tris_w_opp_segment[0])
             triangles.remove(tris_w_opp_segment[1])
 
             # dictionary update: remove `opp_segment` from dictionary and update values associated w/ segments from 
             # `opp_tri_segments0` and `opp_tri_segments1`
-            for t in tris_w_opp_segment:
-                segments_to_triangle_dict.get(t.a).remove(t)
-                segments_to_triangle_dict.get(t.b).remove(t)
-                segments_to_triangle_dict.get(t.c).remove(t)
+            
+            for t1 in tris_w_opp_segment:
+                segments_to_triangle_dict.get(t1.a).remove(t1)
+                segments_to_triangle_dict.get(t1.b).remove(t1)
+                segments_to_triangle_dict.get(t1.c).remove(t1)
             
             segments_to_triangle_dict.pop(opp_segment)
 
@@ -194,15 +207,14 @@ def insert_point(pt, triangles, segments_to_triangle_dict):
 
             # dictionary update: update values associated with segments from `opp_tri_segments0` and `opp_tri_segments1`
             # and add in the new diagonal segment
-            for t in [tri_left, tri_right]:
-                update_dict(t.a, t, segments_to_triangle_dict)
-                update_dict(t.b, t, segments_to_triangle_dict)
-                update_dict(t.c, t, segments_to_triangle_dict)
+            for t1 in [tri_left, tri_right]:
+                update_dict(t1.a, t1, segments_to_triangle_dict)
+                update_dict(t1.b, t1, segments_to_triangle_dict)
+                update_dict(t1.c, t1, segments_to_triangle_dict)
 
             # update the stack using the two new triangles
             add_opposite_triangle(pt, tri_left, stack, segments_to_triangle_dict)
             add_opposite_triangle(pt, tri_right, stack, segments_to_triangle_dict)
-
 
 def triangulate(points):
     '''
@@ -222,8 +234,8 @@ def triangulate(points):
 
     for pt in points:
         insert_point(pt, triangles, segments_to_triangle_dict)
-    
-    return st, triangles
+
+    return st, segments_to_triangle_dict, triangles
 
 def remove_super_triangle(st, triangles):
     '''
@@ -244,7 +256,7 @@ def remove_super_triangle(st, triangles):
     
     return final_triangles
 
-################### Arg parse function ######################
+############################## Arg parse function ##################################
 
 def display_mosaic_baseline(path):
     '''
@@ -258,7 +270,7 @@ def display_mosaic_baseline(path):
     points = randomly_sample_points(image, 1000)
     points = sparsify(points, 30)
 
-    st, triangles = triangulate(points)
+    st, seg_dict, triangles = triangulate(points)
     triangles = remove_super_triangle(st, triangles)
     fill_triangles(image, triangles)
 
