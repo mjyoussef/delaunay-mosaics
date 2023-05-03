@@ -172,6 +172,12 @@ class Triangle():
         coords = [self.A_coords, self.B_coords, self.C_coords]
         return coords.count(other.A_coords) > 0 and coords.count(other.B_coords) > 0 and coords.count(other.C_coords) > 0
     
+    def __hash__(self):
+        coords = [self.A_coords, self.B_coords, self.C_coords]
+        list.sort(coords)
+        str_rep = str(coords[0]) + " " + str(coords[1]) + " " + str(coords[2])
+        return hash(str_rep)
+    
     def opposite_segment(self, pt):
         if (not self.a.contains(pt)):
             return self.a
