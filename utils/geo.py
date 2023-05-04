@@ -152,7 +152,7 @@ class Triangle():
 
         return (original_area <= a_sum + eps) and (original_area >= a_sum - eps)
     
-    def in_circumcircle(self, pt, eps=0.00000001, disp=False):
+    def in_circumcircle(self, pt, eps=0.0001, disp=False):
         pt_dist = dist(pt, self.circumCenter)
         radius = None
         if (self.line):
@@ -171,6 +171,12 @@ class Triangle():
         
         coords = [self.A_coords, self.B_coords, self.C_coords]
         return coords.count(other.A_coords) > 0 and coords.count(other.B_coords) > 0 and coords.count(other.C_coords) > 0
+    
+    def __hash__(self):
+        coords = [self.A_coords, self.B_coords, self.C_coords]
+        list.sort(coords)
+        str_rep = str(coords[0]) + " " + str(coords[1]) + " " + str(coords[2])
+        return hash(str_rep)
     
     def opposite_segment(self, pt):
         if (not self.a.contains(pt)):
