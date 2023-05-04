@@ -152,7 +152,7 @@ class Triangle():
 
         return (original_area <= a_sum + eps) and (original_area >= a_sum - eps)
     
-    def in_circumcircle(self, pt, eps=0.00000001, disp=False):
+    def in_circumcircle(self, pt, eps=0.0001, disp=False):
         pt_dist = dist(pt, self.circumCenter)
         radius = None
         if (self.line):
