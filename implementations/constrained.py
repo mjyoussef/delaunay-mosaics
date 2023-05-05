@@ -1,9 +1,8 @@
 import cv2
-from baseline import triangulate, remove_super_triangle, triangle_from_segments, update_dict, fill_triangles
-from utils.geo import segments_intersect
+from normal import triangulate, remove_super_triangle, swap_diagonal, fill_triangles
 from collections import deque
-from utils.geo import orientation_of, dist, Segment, Triangle
-from utils.sampling import sample_edges_from_edges, randomly_sample_points, get_edges
+from utils.geo import segments_intersect
+from utils.sampling import sample_edges_from_edges, get_edges, add_pts_to_segments
 import numpy as np
 
 '''
@@ -25,6 +24,14 @@ Step 6: Save and display the mosaic from step 5
 '''
 
 def check_delaunay(seg_dict, seg):
+    '''
+    Checks if the triangles containing seg maintain the Delaunay property
+
+    seg_dict: segment to triangles dictionary
+    seg: segment
+
+    return true/false
+    '''
     tris_w_seg = seg_dict.get(seg)
 
     for t in tris_w_seg:
@@ -36,6 +43,15 @@ def check_delaunay(seg_dict, seg):
     return True
 
 def restore_triangulation(seg_dict, new_segments, constrained_segment):
+    '''
+    Swapping procedure that restores the Delaunay property
+
+    seg_dict: segment to triangles dictionary
+    new_segments: newly created segments that don't intersect `constrained_segment`
+    constrained_segment: the constrained segment
+
+    returns void (updates segment dictionary)
+    '''
     swaps = 1
     while (swaps > 0):
         swaps = 0
@@ -52,9 +68,15 @@ def restore_triangulation(seg_dict, new_segments, constrained_segment):
         new_segments = new_segments2
 
 def get_contour(triangles, diag):
-    pts = []
+    '''
+    Creates a quadrilateral from the triangles
+
+    triangles: a list of triangles
+    diag: diagonal segment
+
+    returns a list of points
+    '''
     if (len(triangles) != 2):
-        print("num of triangles", len(triangles))
         raise Exception("Invalid number of triangles in dictionary")
     
     eps = []
@@ -65,38 +87,16 @@ def get_contour(triangles, diag):
     
     return [eps[0], diag.p1, eps[1], diag.p2]
 
-def swap_diagonal(seg_dict, old_diagonal):
-    left, right = [], []
-    tris_w_diag = seg_dict.get(old_diagonal).copy()
-
-    for t in tris_w_diag:
-        non_opp_segments = t.non_opposite_segments(old_diagonal)
-        if (non_opp_segments[0].contains(old_diagonal.p1)):
-            left.append(non_opp_segments[0])
-            right.append(non_opp_segments[1])
-        else:
-            left.append(non_opp_segments[1])
-            right.append(non_opp_segments[0])
-    
-    left_tri = triangle_from_segments(left)
-    right_tri = triangle_from_segments(right)
-
-    # dictionary update
-    for t in tris_w_diag:
-        for seg in [t.a, t.b, t.c]:
-            seg_dict.get(seg).remove(t)
-    
-    seg_dict.pop(old_diagonal)
-
-    for t in [left_tri, right_tri]:
-        for seg in [t.a, t.b, t.c]:
-            update_dict(seg, t, seg_dict)
-    
-    # return reference to the new diagonal
-    return left_tri.opposite_segment(old_diagonal.p1)
-
 
 def remove_intersecting_edges(seg_dict, constrained_segment):
+    '''
+    Removes any segments that intersect the constrained segment
+
+    seg_dict: segment to triangles dictionary
+    constrained_segment: a constrained segment
+
+    returns a list of newly created segments
+    '''
 
     new_segments = []
 
@@ -157,44 +157,34 @@ def constrained_triangulation(pts, segments):
     
     return st, seg_dict, list(triangles)
 
+############################ Arg parse functions #############################
 
-###################### Tests ####################
+def display_mosaic_w_constrained_edges(path, args_dict):
+    '''
+    Triangulates an image using sampled edges as constrained segments
 
-if __name__ == '__main__':
-    dist_thresh = 30
-    theta_thresh = np.pi/6
+    path: path to the image
+    args_dict: argument dictionary
 
-    # load img + run edge detection
-    original_img, blurred, output = get_edges("../../delaunay-mosaics/images/portraits/abe.jpeg", 5, 5, 25, 80)
+    returns void
+    '''
 
-    # get constrained edges + pts
-    edges = sample_edges_from_edges(output, 15, dist_thresh, theta_thresh, radius=1)
-    edges_transpose = []
-    for e in edges:
-        edges_transpose.append(Segment((e[0][1], e[0][0]), (e[1][1], e[1][0])))
-    edges = edges_transpose
-
-    pts = randomly_sample_points(original_img, 300, 0.01, dist_thresh-10, mode="not corner")
-
-    # filter points
-    filtered_pts = []
-    for pt in pts:
-        isValidPt = True
-        for e in edges:
-            if (orientation_of(e.p1, e.p2, pt) == 0 and pt[0] >= e.p1[0] and pt[0] <= e.p2[0]):
-                isValidPt = False
-                break
-            
-            if (dist(e.p1, pt) < dist_thresh-10 or dist(e.p2, pt) < dist_thresh-10):
-                isValidPt = False
-                break
-        
-        if (isValidPt):
-            filtered_pts.append((pt[1], pt[0]))
+    print("Running edge detection...\n")
+    original_img, _, output = get_edges(path, args_dict.get("sigma_x"), args_dict.get("sigma_y"), 20, 80)
     
-    st, seg_dict, triangles = constrained_triangulation(filtered_pts, edges)
-    final_triangles = remove_super_triangle(st, triangles)
-    print(len(triangles))
-    fill_triangles(original_img, final_triangles)
-    cv2.imshow("new image", original_img)
+    print("Collecting sample edges...")
+    segments = sample_edges_from_edges(output, args_dict.get("min_length"), args_dict.get("min_dist"), args_dict.get("theta_thresh"))
+    print(f"Found {len(segments)} segments\n")
+
+    print("Collecting additional points...")
+    additional_pts = add_pts_to_segments(original_img, segments, args_dict.get("num_add_pts"), args_dict.get("min_dist"))
+    print(f"Found {len(additional_pts)} additional points\n")
+
+    print("Triangulating...")
+    st, _, triangles = constrained_triangulation(segments, additional_pts)
+    triangles = remove_super_triangle(st, triangles)
+    print(f"Generated {len(triangles)} triangles\n")
+
+    fill_triangles(original_img, triangles)
+    cv2.imshow("Triangulated Image", original_img)
     cv2.waitKey(0)
