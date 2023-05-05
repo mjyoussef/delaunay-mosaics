@@ -5,8 +5,7 @@ import cv2
 import numpy as np
 from queue import Queue
 import random
-from utils.geo import dist, segments_intersect
-
+from utils.geo import dist, segments_intersect, Segment
 
 
 ########################## Helpers ###############################
@@ -92,7 +91,7 @@ def get_edges(path, sigmaX, sigmaY, thresh1, thresh2):
     '''
     image = cv2.imread(path)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (sigmaX, sigmaY), 0)
+    blurred = cv2.GaussianBlur(gray, (5, 5), sigmaX=sigmaX, sigmaY=sigmaY)
     output = cv2.Canny(blurred, thresh1, thresh2)
 
     return image, blurred, output
@@ -110,15 +109,26 @@ def randomly_sample_points(img, cnt, qualityScore, minDistance, mode="corner"):
     returns a list of tuples representing the randomly sampled points
     '''
     if mode=="corner":
-        # 对特征点进行角点检测
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         corners = cv2.goodFeaturesToTrack(gray, cnt, qualityScore, minDistance)
         corners = np.squeeze(corners)
-        return corners
+
+        coords = []
+        for corner in corners:
+            coords.append((int(corner[1]), int(corner[0])))
+        
+        return coords
     else:
-        x = np.random.randint(1, img.shape[0]-1, (cnt, 1))
-        y = np.random.randint(1, img.shape[1]-1, (cnt, 1))
-        return sparsify(np.concatenate([x,y], axis=1), minDistance)
+        x = np.random.randint(1, img.shape[0]-1, (cnt, ))
+        x = np.squeeze(x)
+        y = np.random.randint(1, img.shape[1]-1, (cnt, ))
+        y = np.squeeze(y)
+
+        coords = []
+        for idx in range(x.shape[0]):
+            coords.append((int(y[idx]), int(x[idx])))
+
+        return sparsify(coords, minDistance)
 
 def sample_points_from_edges(img, cnt, minDistance):
     '''
@@ -134,8 +144,13 @@ def sample_points_from_edges(img, cnt, minDistance):
     coords = np.column_stack(np.where(img > 0))
 
     samples = coords[np.random.choice(coords.shape[0], cnt, replace=False), :]
+    samples = np.squeeze(samples)
 
-    return sparsify(samples, minDistance)
+    coords = []
+    for idx in range(samples.shape[0]):
+        coords.append((samples[idx][1], samples[idx][0]))
+
+    return sparsify(coords, minDistance)
 
 def remove_intersecting_edges(edges):
     '''
@@ -290,30 +305,68 @@ def sample_edges_from_edges(img, min_length, dist_thresh, theta_thresh, radius=1
                 search(img_copy, i, j, min_length, edges, radius)
     
     non_intersecting_edges = remove_intersecting_edges(edges)
-    return remove_close_edges(non_intersecting_edges, dist_thresh, theta_thresh)
+    output = remove_close_edges(non_intersecting_edges, dist_thresh, theta_thresh)
+
+    final_output = []
+    for edge in output:
+        final_output.append(((edge[0][1], edge[0][0]), (edge[1][1], edge[1][0])))
+    return final_output
 
 
-############################ TESTS ###############################
 
-if __name__ == '__main__':
-    original_img, blurred, output = get_edges("../../delaunay-mosaics/images/portraits/abe.jpeg", 5, 5, 25, 80)
-    pts = randomly_sample_points(original_img, 300, 0.01, 18)
-    pts_non_corner = randomly_sample_points(original_img, 300, 0.01, 18, mode="normal")
-    pts_from_edges = sample_points_from_edges(output, 300, 18)
+########################### Post processing utilities #########################
+def edges_to_segments(edges):
+    '''
+    Converts a list of pairs of points into segment objects
 
-    # dist_thresh = 30
-    # theta_thresh = np.pi/6
+    edges: a list of edges
 
-    # original_img, blurred, output = get_edges("../../delaunay-mosaics/images/portraits/abe.jpeg", 5, 5, 25, 80)
-    # edges = sample_edges_from_edges(output, 30, dist_thresh, theta_thresh, radius=1)
-
-    # width, height = output.shape
-    # image = np.ones((width, height, 3)) * 255
-
-    # for p1, p2 in edges:
-    #     cv2.line(image, (p1[1], p1[0]), (p2[1], p2[0]), (0, 255, 0), thickness=2)
-    #     cv2.circle(image, (p1[1], p1[0]), 2, (255, 0, 0), thickness=-1)
-    #     cv2.circle(image, (p2[1], p2[0]), 2, (255, 0, 0), thickness=-1)
+    returns a list of segment objects
+    '''
+    segments = []
+    for e in edges:
+        segments.append(Segment(e[0], e[1]))
     
-    # cv2.imshow("output", image)
-    # cv2.waitKey(0)
+    return segments
+
+def add_pts_to_pts(img, pts, count, dist_threshold):
+    '''
+    Adds supplementary points to the points while maintaining the required distance threshold
+
+    pts: points
+    count: num points
+    dist_threshold: distance threshold
+
+    returns a list of additional points
+    '''
+
+    new_pts_raw = randomly_sample_points(img, count, 0, dist_threshold, mode="not corner")
+    new_pts_final = []
+    for pt in new_pts_raw:
+        withinThresh = True
+        for pt2 in pts:
+            if (dist(pt, pt2) < dist_threshold):
+                withinThresh = False
+                break
+        if (withinThresh):
+            new_pts_final.append(pt)
+    
+    return new_pts_final
+
+def add_pts_to_segments(img, segments, count, dist_threshold):
+    '''
+    Adds supplementary points to the segments while maintaining the required distance threshold
+
+    segments: a list of segments
+    count: num points
+    dist_threshold: distance threshold
+
+    returns a list of additional points
+    '''
+
+    seg_pts = set([])
+    for seg in segments:
+        seg_pts.add(seg.p1)
+        seg_pts.add(seg.p2)
+    
+    return add_pts_to_pts(img, seg_pts, count, dist_threshold)

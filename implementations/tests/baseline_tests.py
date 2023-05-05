@@ -1,7 +1,7 @@
 import sys
 sys.path.append("../../../delaunay-mosaics")
 
-from implementations.baseline import super_triangle, triangulate, remove_super_triangle
+from implementations.normal import super_triangle, triangulate, remove_super_triangle
 from utils.geo import segments_intersect
 import unittest
 

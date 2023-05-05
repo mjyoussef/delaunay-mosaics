@@ -29,6 +29,9 @@ def fill_triangles(image, triangles):
         B_mean, G_mean, R_mean, _ = cv2.mean(image, mask=mask)
         cv2.fillPoly(image, tri_coords, (B_mean, G_mean, R_mean))
     
+
+######################## TESTS #############################
+
 if __name__ == '__main__':
     triangles = [
         Triangle((0,0), (200,200), (300,25)),
