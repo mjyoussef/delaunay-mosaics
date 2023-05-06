@@ -1,8 +1,11 @@
 import cv2
-from normal import triangulate, remove_super_triangle, swap_diagonal, fill_triangles
+import sys
+sys.path.append("../../delaunay-mosaics")
+
+from implementations.normal import triangulate, remove_super_triangle, swap_diagonal, fill_triangles
 from collections import deque
 from utils.geo import segments_intersect
-from utils.sampling import sample_edges_from_edges, get_edges, add_pts_to_segments
+from utils.sampling import sample_edges_from_edges, get_edges, add_pts_to_segments, edges_to_segments
 import numpy as np
 
 '''
@@ -136,9 +139,9 @@ def constrained_triangulation(pts, segments):
     returns a super triangle, segment dictionary, and list of triangles
     '''
     for seg in segments:
-        if (seg.p1 not in pts):
+        if seg.p1 not in pts:
             pts.append(seg.p1)
-        if (seg.p2 not in pts):
+        if seg.p2 not in pts:
             pts.append(seg.p2)
         
     st, seg_dict, _ = triangulate(pts)
@@ -173,15 +176,16 @@ def display_mosaic_w_constrained_edges(path, args_dict):
     original_img, _, output = get_edges(path, args_dict.get("sigma_x"), args_dict.get("sigma_y"), 20, 80)
     
     print("Collecting sample edges...")
-    segments = sample_edges_from_edges(output, args_dict.get("min_length"), args_dict.get("min_dist"), args_dict.get("theta_thresh"))
+    edges = sample_edges_from_edges(output, args_dict.get("min_length"), args_dict.get("min_dist"), args_dict.get("theta_thresh"))
+    segments = edges_to_segments(edges)
     print(f"Found {len(segments)} segments\n")
 
     print("Collecting additional points...")
-    additional_pts = add_pts_to_segments(original_img, segments, args_dict.get("num_add_pts"), args_dict.get("min_dist"))
+    additional_pts = add_pts_to_segments(original_img, segments, args_dict.get("num_add_points"), args_dict.get("min_dist"))
     print(f"Found {len(additional_pts)} additional points\n")
 
     print("Triangulating...")
-    st, _, triangles = constrained_triangulation(segments, additional_pts)
+    st, _, triangles = constrained_triangulation(additional_pts, segments)
     triangles = remove_super_triangle(st, triangles)
     print(f"Generated {len(triangles)} triangles\n")
 

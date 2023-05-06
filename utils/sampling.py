@@ -115,13 +115,13 @@ def randomly_sample_points(img, cnt, qualityScore, minDistance, mode="corner"):
 
         coords = []
         for corner in corners:
-            coords.append((int(corner[1]), int(corner[0])))
+            coords.append((int(corner[0]), int(corner[1])))
         
         return coords
     else:
-        x = np.random.randint(1, img.shape[0]-1, (cnt, ))
+        x = np.random.randint(1, img.shape[0]-1, (cnt, 1))
         x = np.squeeze(x)
-        y = np.random.randint(1, img.shape[1]-1, (cnt, ))
+        y = np.random.randint(1, img.shape[1]-1, (cnt, 1))
         y = np.squeeze(y)
 
         coords = []
@@ -369,4 +369,5 @@ def add_pts_to_segments(img, segments, count, dist_threshold):
         seg_pts.add(seg.p1)
         seg_pts.add(seg.p2)
     
-    return add_pts_to_pts(img, seg_pts, count, dist_threshold)
+    out = add_pts_to_pts(img, seg_pts, count, dist_threshold)
+    return out

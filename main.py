@@ -19,13 +19,13 @@ def main():
     parser.add_argument("--min_length", type=int, help="minimum length for edges in constrained triangulation")
     parser.add_argument("--theta_thresh", type=float, help="minimum angle for pairs of segments")
     parser.add_argument("--min_dist", type=int, help="minimum distance between points")
-    parser.add_argument("--num_add_points", type=int, help="number of additional points for triangulation")
+    parser.add_argument("--num_add_points", type=int, help="number of addonal points for triangulation")
 
     args = parser.parse_args()
     path = args.path
     func = func_dict[args.func]
 
-    func(path, args)
+    func(path, vars(args))
 
 if __name__ == '__main__':
     main()
