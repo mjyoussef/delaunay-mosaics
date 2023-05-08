@@ -1,4 +1,4 @@
-# Generating Triangular Mosaics using Constrained Delaunay Triangulation
+# Delaunay Mosaics: Generated Edge-Informed Triangulations of Images
 
 ## Baseline
 The baseline approach randomly samples points in an image, creates a triangulation from them, and fills in the color of each cell using the average pixel color. 
