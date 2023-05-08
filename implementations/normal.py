@@ -260,10 +260,11 @@ def display_mosaic_baseline(path, args_dict):
     returns void
     '''
     image = cv2.imread(path)
-    points = randomly_sample_points(image, args_dict.get("num_points"))
+    points = randomly_sample_points(image, args_dict.get("num_points"), 0, args_dict.get("min_dist"), mode='not corner')
 
     st, _, triangles = triangulate(points)
     triangles = remove_super_triangle(st, triangles)
+    print(len(triangles))
     fill_triangles(image, triangles)
 
     cv2.imshow("baseline", image)
