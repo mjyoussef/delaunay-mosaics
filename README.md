@@ -14,4 +14,4 @@ The goal of approach 1 is to make sure that cells edges in an image also seperat
 To remedy this, we use constrained Delaunay Triangulation, which is a type of Delaunay Triangulation that incorporates a specific set of edges. By sampling *edges* instead of points along the edges in an image and passing them into a constrained Delaunay Triangulation algorithm, we can ensure that only few edges in the triangulation cross edges in the image.
 
 # Demos
-
+<img src='./images/outputs/scenes/barcelona3.png' width=400>
