@@ -15,3 +15,5 @@ To remedy this, we use constrained Delaunay Triangulation, which is a type of De
 
 # Demos
 <img src='./images/outputs/scenes/barcelona3.png' width=400>
+<img src='./images/outputs/portraits/abe3.png' width=400>
+<img src='./images/outputs/portraits/pe3.png' width=400>
