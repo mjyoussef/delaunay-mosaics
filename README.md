@@ -11,5 +11,4 @@ We can modify the baseline approach by outlining edges in an image (ie. using th
 ## Aproach 2: Edge Detector + Random Point Sampling + Constrained Delaunay Triangulation
 The goal of approach 1 is to make sure that cells edges in an image also seperate cells in the triangulation. This cannot be guarenteed, especially when the density of the points is high, because some edges in the triangulation may end up crossing edges in the image.
 
-To remedy this, we use constrained Delaunay Triangulation, which is a type of Delaunay Triangulation that incorporates a specific set of edges. By sampling *edges* instead of points along the edges in an image and passing them into a constrained Delaunay Triangulation algorithm, we can ensure that only few edges in the triangulation cross edges in the image. 
-
+To remedy this, we use constrained Delaunay Triangulation, which is a type of Delaunay Triangulation that incorporates a specific set of edges. By sampling *edges* instead of points along the edges in an image and passing them into a constrained Delaunay Triangulation algorithm, we can ensure that only few edges in the triangulation cross edges in the image.
